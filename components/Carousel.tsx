@@ -68,7 +68,7 @@ const Carousel: React.FC = () => {
   return (
     <div className="relative w-full h-full flex flex-col justify-center items-center overflow-hidden bg-stone-900">
       {/* Viewport Container */}
-      <div className="relative w-full h-full max-w-lg max-h-[90vh] aspect-[9/16] mx-auto">
+      <div className="relative w-full h-full max-w-lg max-h-[90vh] aspect-[9/16] mx-auto touch-pan-y">
         <AnimatePresence initial={false} custom={direction}>
           <motion.img
             key={page}
@@ -92,20 +92,22 @@ const Carousel: React.FC = () => {
                 paginate(SwipeDirection.LEFT);
               }
             }}
-            className="absolute w-full h-full object-contain drop-shadow-2xl cursor-grab active:cursor-grabbing rounded-sm"
+            className="absolute w-full h-full object-contain drop-shadow-2xl cursor-grab active:cursor-grabbing rounded-sm touch-pan-y"
           />
         </AnimatePresence>
       </div>
 
-      {/* Minimal Progress Indicator */}
-      <div className="absolute bottom-6 left-0 right-0 flex justify-center items-center gap-2 z-10">
+      {/* Instagram-style Progress Indicator at Top */}
+      <div className="absolute top-3 left-2 right-2 flex justify-center items-center gap-1 z-20">
         {IMAGES.map((_, idx) => (
           <div
             key={idx}
-            className={`h-1.5 rounded-full transition-all duration-300 ${
-              idx === imageIndex 
-                ? 'w-4 bg-white/90' 
-                : 'w-1.5 bg-white/20'
+            className={`h-0.5 flex-1 rounded-full transition-all duration-300 ${
+              idx === imageIndex
+                ? 'bg-white/90'
+                : idx < imageIndex
+                  ? 'bg-white/60'
+                  : 'bg-white/30'
             }`}
           />
         ))}
