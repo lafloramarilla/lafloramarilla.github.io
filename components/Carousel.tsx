@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { motion, AnimatePresence, Variants, useMotionValue, useSpring, useAnimation } from 'framer-motion';
-import { useGesture } from '@use-gesture/react';
+import { motion, AnimatePresence, Variants, useMotionValue, useSpring } from 'framer-motion';
+import { usePinch } from '@use-gesture/react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { IMAGES } from '../constants';
 import { SwipeDirection } from '../types';
@@ -122,13 +122,8 @@ const Carousel: React.FC = () => {
   const springZoomX = useSpring(zoomX, { stiffness: 300, damping: 30 });
   const springZoomY = useSpring(zoomY, { stiffness: 300, damping: 30 });
 
-  // Drag state for swipe navigation
-  const dragX = useMotionValue(0);
-  const springDragX = useSpring(dragX, { stiffness: 300, damping: 30 });
-
-  const imageRef = useRef<HTMLDivElement>(null);
+  const gestureRef = useRef<HTMLDivElement>(null);
   const pinchOriginRef = useRef<{ x: number; y: number } | null>(null);
-  const isPinchingRef = useRef(false);
 
   // Safari gesture prevention
   useEffect(() => {
@@ -141,89 +136,54 @@ const Carousel: React.FC = () => {
     };
   }, []);
 
-  const bind = useGesture(
-    {
-      onDrag: ({ movement: [mx], velocity: [vx], direction: [dx], cancel, active }) => {
-        // Don't drag while pinching
-        if (isPinchingRef.current) {
-          cancel();
-          return;
-        }
+  // Only pinch gesture - let framer-motion handle drag for swipe
+  usePinch(
+    ({ da: [d], origin: [ox, oy], first, active, memo }) => {
+      if (!gestureRef.current) return memo;
 
-        if (active) {
-          dragX.set(mx);
-        } else {
-          // Check for swipe on drag end
-          const swipe = Math.abs(mx) * Math.abs(vx);
-          if (swipe > swipeConfidenceThreshold) {
-            if (dx > 0) {
-              paginate(SwipeDirection.LEFT);
-            } else {
-              paginate(SwipeDirection.RIGHT);
-            }
-          }
-          dragX.set(0);
-        }
-      },
-      onPinch: ({ da: [d], origin: [ox, oy], first, active, memo }) => {
-        if (!imageRef.current) return memo;
+      const rect = gestureRef.current.getBoundingClientRect();
+      const centerX = rect.width / 2;
+      const centerY = rect.height / 2;
 
-        // Mark as pinching to prevent drag interference
-        isPinchingRef.current = active;
+      // On first pinch event, capture origin and initial distance
+      if (first) {
+        pinchOriginRef.current = {
+          x: ox - rect.left,
+          y: oy - rect.top,
+        };
+        return d; // Store initial distance as memo
+      }
 
-        const rect = imageRef.current.getBoundingClientRect();
-        const centerX = rect.width / 2;
-        const centerY = rect.height / 2;
+      // Calculate scale from distance change
+      const initialDistance = memo || d;
+      const currentScale = d / initialDistance;
+      const clampedScale = Math.min(Math.max(currentScale, 0.5), 3);
 
-        // On first pinch event, capture origin and initial distance
-        if (first) {
-          pinchOriginRef.current = {
-            x: ox - rect.left,
-            y: oy - rect.top,
-          };
-          return d; // Store initial distance as memo
-        }
+      zoomScale.set(clampedScale);
 
-        // Calculate scale from distance change
-        const initialDistance = memo || d;
-        const currentScale = d / initialDistance;
-        const clampedScale = Math.min(Math.max(currentScale, 0.5), 3);
+      // Use captured origin for stable zoom point
+      const originX = pinchOriginRef.current?.x ?? centerX;
+      const originY = pinchOriginRef.current?.y ?? centerY;
 
-        zoomScale.set(clampedScale);
+      // Translate to keep pinch point stationary
+      const offsetX = (centerX - originX) * (clampedScale - 1);
+      const offsetY = (centerY - originY) * (clampedScale - 1);
 
-        // Use captured origin for stable zoom point
-        const originX = pinchOriginRef.current?.x ?? centerX;
-        const originY = pinchOriginRef.current?.y ?? centerY;
+      zoomX.set(offsetX);
+      zoomY.set(offsetY);
 
-        // Translate to keep pinch point stationary
-        const offsetX = (centerX - originX) * (clampedScale - 1);
-        const offsetY = (centerY - originY) * (clampedScale - 1);
+      // Bounce back when gesture ends
+      if (!active) {
+        zoomScale.set(1);
+        zoomX.set(0);
+        zoomY.set(0);
+        pinchOriginRef.current = null;
+      }
 
-        zoomX.set(offsetX);
-        zoomY.set(offsetY);
-
-        // Bounce back when gesture ends
-        if (!active) {
-          zoomScale.set(1);
-          zoomX.set(0);
-          zoomY.set(0);
-          pinchOriginRef.current = null;
-          isPinchingRef.current = false;
-        }
-
-        return memo;
-      },
+      return memo;
     },
     {
-      drag: {
-        axis: 'x',
-        filterTaps: true,
-      },
-      pinch: {
-        scaleBounds: { min: 0.5, max: 3 },
-        rubberband: true,
-      },
-      target: imageRef,
+      target: gestureRef,
       eventOptions: { passive: false },
     }
   );
@@ -237,11 +197,16 @@ const Carousel: React.FC = () => {
         onTouchEnd={handleTouchEnd}
         className="relative w-full h-full max-w-lg max-h-[90vh] aspect-[9/16] mx-auto touch-pan-y"
       >
-        {/* Gesture target wrapper */}
-        <div
-          ref={imageRef}
-          className="absolute inset-0 touch-none"
-          style={{ touchAction: 'none' }}
+        {/* Gesture target wrapper for pinch - zoom transforms applied here */}
+        <motion.div
+          ref={gestureRef}
+          className="absolute inset-0"
+          style={{
+            touchAction: 'pan-y',
+            scale: springScale,
+            x: springZoomX,
+            y: springZoomY,
+          }}
         >
           <AnimatePresence initial={false} custom={direction}>
             <motion.img
@@ -253,16 +218,23 @@ const Carousel: React.FC = () => {
               initial="enter"
               animate="center"
               exit="exit"
-              style={{
-                scale: springScale,
-                x: springDragX,
-                translateX: springZoomX,
-                translateY: springZoomY,
+              // No extra style - zoom handled by wrapper, variants handle transitions
+              // Let framer-motion handle drag for swipe
+              drag="x"
+              dragConstraints={{ left: 0, right: 0 }}
+              dragElastic={0.7}
+              onDragEnd={(e, { offset, velocity }) => {
+                const swipe = swipePower(offset.x, velocity.x);
+                if (swipe < -swipeConfidenceThreshold) {
+                  paginate(SwipeDirection.RIGHT);
+                } else if (swipe > swipeConfidenceThreshold) {
+                  paginate(SwipeDirection.LEFT);
+                }
               }}
-              className="absolute w-full h-full object-contain drop-shadow-2xl cursor-grab active:cursor-grabbing rounded-sm"
+              className="absolute w-full h-full object-contain drop-shadow-2xl cursor-grab active:cursor-grabbing rounded-sm touch-none"
             />
           </AnimatePresence>
-        </div>
+        </motion.div>
       </div>
 
       {/* Progress Indicator at Bottom */}
