@@ -114,20 +114,41 @@ const Carousel: React.FC = () => {
     touchStartRef.current = null;
   }, [paginate]);
 
-  // Pinch-to-zoom with bounce-back
+  // Pinch-to-zoom with "zoom where you pinch" and bounce-back
   const scale = useMotionValue(1);
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
   const springScale = useSpring(scale, { stiffness: 300, damping: 30 });
+  const springX = useSpring(x, { stiffness: 300, damping: 30 });
+  const springY = useSpring(y, { stiffness: 300, damping: 30 });
   const imageRef = useRef<HTMLImageElement>(null);
 
-  const bindPinch = usePinch(
-    ({ offset: [s], active }) => {
+  usePinch(
+    ({ offset: [s], origin: [ox, oy], active }) => {
+      if (!imageRef.current) return;
+
       // Clamp scale between 0.5 and 3
       const clampedScale = Math.min(Math.max(s, 0.5), 3);
       scale.set(clampedScale);
 
-      // Bounce back to 1 when gesture ends
+      // Calculate translation to zoom toward pinch point
+      // Origin is relative to the element, we need offset from center
+      const rect = imageRef.current.getBoundingClientRect();
+      const centerX = rect.width / 2;
+      const centerY = rect.height / 2;
+
+      // Translate so the pinch point stays under the fingers
+      const offsetX = (centerX - ox) * (clampedScale - 1);
+      const offsetY = (centerY - oy) * (clampedScale - 1);
+
+      x.set(offsetX);
+      y.set(offsetY);
+
+      // Bounce back to default when gesture ends
       if (!active) {
         scale.set(1);
+        x.set(0);
+        y.set(0);
       }
     },
     {
@@ -148,7 +169,6 @@ const Carousel: React.FC = () => {
       >
         <AnimatePresence initial={false} custom={direction}>
           <motion.img
-            {...bindPinch()}
             ref={imageRef}
             key={page}
             src={IMAGES[imageIndex].url}
@@ -158,7 +178,7 @@ const Carousel: React.FC = () => {
             initial="enter"
             animate="center"
             exit="exit"
-            style={{ scale: springScale }}
+            style={{ scale: springScale, x: springX, y: springY }}
             // Drag logic
             drag="x"
             dragConstraints={{ left: 0, right: 0 }}
@@ -177,8 +197,8 @@ const Carousel: React.FC = () => {
         </AnimatePresence>
       </div>
 
-      {/* Instagram-style Progress Indicator at Top */}
-      <div className="absolute top-3 left-2 right-2 flex justify-center items-center gap-1 z-20">
+      {/* Progress Indicator at Bottom */}
+      <div className="absolute bottom-6 left-2 right-2 flex justify-center items-center gap-1 z-20">
         {IMAGES.map((_, idx) => (
           <div
             key={idx}
