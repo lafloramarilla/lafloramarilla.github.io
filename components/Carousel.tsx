@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useRef } from 'react';
-import { motion, AnimatePresence, Variants } from 'framer-motion';
+import { motion, AnimatePresence, Variants, useMotionValue, useSpring } from 'framer-motion';
+import { usePinch } from '@use-gesture/react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { IMAGES } from '../constants';
 import { SwipeDirection } from '../types';
@@ -113,6 +114,29 @@ const Carousel: React.FC = () => {
     touchStartRef.current = null;
   }, [paginate]);
 
+  // Pinch-to-zoom with bounce-back
+  const scale = useMotionValue(1);
+  const springScale = useSpring(scale, { stiffness: 300, damping: 30 });
+  const imageRef = useRef<HTMLImageElement>(null);
+
+  const bindPinch = usePinch(
+    ({ offset: [s], active }) => {
+      // Clamp scale between 0.5 and 3
+      const clampedScale = Math.min(Math.max(s, 0.5), 3);
+      scale.set(clampedScale);
+
+      // Bounce back to 1 when gesture ends
+      if (!active) {
+        scale.set(1);
+      }
+    },
+    {
+      scaleBounds: { min: 0.5, max: 3 },
+      rubberband: true,
+      target: imageRef,
+    }
+  );
+
   return (
     <div className="relative w-full h-full flex flex-col justify-center items-center overflow-hidden bg-stone-900">
       {/* Viewport Container with smart tap detection */}
@@ -124,6 +148,8 @@ const Carousel: React.FC = () => {
       >
         <AnimatePresence initial={false} custom={direction}>
           <motion.img
+            {...bindPinch()}
+            ref={imageRef}
             key={page}
             src={IMAGES[imageIndex].url}
             alt={IMAGES[imageIndex].alt}
@@ -132,6 +158,7 @@ const Carousel: React.FC = () => {
             initial="enter"
             animate="center"
             exit="exit"
+            style={{ scale: springScale }}
             // Drag logic
             drag="x"
             dragConstraints={{ left: 0, right: 0 }}
@@ -145,7 +172,7 @@ const Carousel: React.FC = () => {
                 paginate(SwipeDirection.LEFT);
               }
             }}
-            className="absolute w-full h-full object-contain drop-shadow-2xl cursor-grab active:cursor-grabbing rounded-sm touch-pan-y"
+            className="absolute w-full h-full object-contain drop-shadow-2xl cursor-grab active:cursor-grabbing rounded-sm touch-none"
           />
         </AnimatePresence>
       </div>
