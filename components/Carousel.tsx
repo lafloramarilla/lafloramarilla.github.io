@@ -37,19 +37,30 @@ const variants: Variants = {
 const Carousel: React.FC = () => {
   const [[page, direction], setPage] = useState([0, 0]);
 
-  // We wrap the index to allow infinite looping if desired, 
+  // We wrap the index to allow infinite looping if desired,
   // but for a book/program, strictly linear (clamped) usually feels better.
   // Here we implement bounded linear navigation.
   const imageIndex = page;
+
+  // Edge bounce feedback - subtle nudge when hitting boundaries
+  const edgeBounceX = useMotionValue(0);
+  const springEdgeBounce = useSpring(edgeBounceX, { stiffness: 400, damping: 25 });
+
+  const triggerEdgeBounce = useCallback((direction: number) => {
+    // Nudge in the opposite direction of the attempted swipe, then spring back
+    const nudgeAmount = direction > 0 ? -15 : 15;
+    edgeBounceX.set(nudgeAmount);
+    setTimeout(() => edgeBounceX.set(0), 50);
+  }, [edgeBounceX]);
 
   const paginate = useCallback((newDirection: number) => {
     const newPage = page + newDirection;
     if (newPage >= 0 && newPage < IMAGES.length) {
       setPage([newPage, newDirection]);
     } else {
-      // Optional: Visual feedback for end of book?
+      triggerEdgeBounce(newDirection);
     }
-  }, [page]);
+  }, [page, triggerEdgeBounce]);
 
   // Handle keyboard navigation for desktop accessibility
   React.useEffect(() => {
@@ -207,14 +218,19 @@ const Carousel: React.FC = () => {
 
   return (
     <div className="relative w-full h-full flex flex-col justify-center items-center overflow-hidden bg-stone-900">
-      {/* Viewport Container with smart tap detection */}
-      <div
-        ref={containerRef}
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
-        className="relative w-full h-full max-w-lg max-h-[90vh] aspect-[9/16] mx-auto touch-none overflow-hidden"
-        style={{ contain: 'layout paint' }}
+      {/* Edge bounce wrapper - nudges when hitting boundaries */}
+      <motion.div
+        className="relative w-full h-full max-w-lg max-h-[90vh] aspect-[9/16] mx-auto"
+        style={{ x: springEdgeBounce }}
       >
+        {/* Viewport Container with smart tap detection */}
+        <div
+          ref={containerRef}
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+          className="relative w-full h-full touch-none overflow-hidden"
+          style={{ contain: 'layout paint' }}
+        >
         {/* Gesture target wrapper for pinch - zoom transforms applied here */}
         <motion.div
           ref={gestureRef}
@@ -269,27 +285,27 @@ const Carousel: React.FC = () => {
             />
           ))}
         </div>
-      </div>
+        </div>
 
-      {/* Desktop Navigation Arrows (Hidden on touch devices largely via CSS logic or just subtle overlays) */}
-      {page > 0 && (
-        <button
-          className="absolute left-4 top-1/2 -translate-y-1/2 z-20 p-3 rounded-full bg-black/20 hover:bg-black/40 text-white/70 backdrop-blur-sm transition-all hidden md:flex"
-          onClick={() => paginate(SwipeDirection.LEFT)}
-        >
-          <ChevronLeft size={32} />
-        </button>
-      )}
-      
-      {page < IMAGES.length - 1 && (
-        <button
-          className="absolute right-4 top-1/2 -translate-y-1/2 z-20 p-3 rounded-full bg-black/20 hover:bg-black/40 text-white/70 backdrop-blur-sm transition-all hidden md:flex"
-          onClick={() => paginate(SwipeDirection.RIGHT)}
-        >
-          <ChevronRight size={32} />
-        </button>
-      )}
-      
+        {/* Desktop Navigation Arrows (Hidden on touch devices largely via CSS logic or just subtle overlays) */}
+        {page > 0 && (
+          <button
+            className="absolute left-4 top-1/2 -translate-y-1/2 z-20 p-3 rounded-full bg-black/20 hover:bg-black/40 text-white/70 backdrop-blur-sm transition-all hidden md:flex"
+            onClick={() => paginate(SwipeDirection.LEFT)}
+          >
+            <ChevronLeft size={32} />
+          </button>
+        )}
+
+        {page < IMAGES.length - 1 && (
+          <button
+            className="absolute right-4 top-1/2 -translate-y-1/2 z-20 p-3 rounded-full bg-black/20 hover:bg-black/40 text-white/70 backdrop-blur-sm transition-all hidden md:flex"
+            onClick={() => paginate(SwipeDirection.RIGHT)}
+          >
+            <ChevronRight size={32} />
+          </button>
+        )}
+      </motion.div>
     </div>
   );
 };
