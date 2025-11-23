@@ -206,9 +206,14 @@ const Carousel: React.FC = () => {
       const tapX = touchStartRef.current.x - rect.left;
       const tapY = touchStartRef.current.y - rect.top;
       const now = Date.now();
+      const containerWidth = rect.width;
+      const relativeX = tapX / containerWidth;
 
-      // Check for double-tap
-      if (lastTapRef.current) {
+      // Check if tap is in edge zone (for navigation) or center zone (for zoom)
+      const isInEdgeZone = relativeX < EDGE_ZONE_PERCENT || relativeX > 1 - EDGE_ZONE_PERCENT;
+
+      // Check for double-tap (only in center zone to not interfere with rapid edge tapping)
+      if (!isInEdgeZone && lastTapRef.current) {
         const timeSinceLastTap = now - lastTapRef.current.time;
         const distFromLastTap = Math.sqrt(
           Math.pow(tapX - lastTapRef.current.x, 2) +
@@ -216,7 +221,7 @@ const Carousel: React.FC = () => {
         );
 
         if (timeSinceLastTap < DOUBLE_TAP_MS && distFromLastTap < DOUBLE_TAP_PX) {
-          // Double-tap detected!
+          // Double-tap detected in center zone!
           handleDoubleTapZoom(tapX, tapY);
           lastTapRef.current = null;
           touchStartRef.current = null;
@@ -224,21 +229,19 @@ const Carousel: React.FC = () => {
         }
       }
 
-      // Store this tap for potential double-tap detection
-      lastTapRef.current = { x: tapX, y: tapY, time: now };
+      // Store this tap for potential double-tap detection (only center taps)
+      if (!isInEdgeZone) {
+        lastTapRef.current = { x: tapX, y: tapY, time: now };
+      }
 
-      // Single tap handling (with slight delay to distinguish from double-tap)
-      const containerWidth = rect.width;
-      const relativeX = tapX / containerWidth;
-
-      // Only handle edge taps for navigation if not zoomed
-      if (!isZoomedRef.current) {
+      // Handle edge taps for navigation (if not zoomed)
+      if (!isZoomedRef.current && isInEdgeZone) {
         // Tap on left edge → go back
         if (relativeX < EDGE_ZONE_PERCENT) {
           paginate(SwipeDirection.LEFT);
         }
         // Tap on right edge → go forward
-        else if (relativeX > 1 - EDGE_ZONE_PERCENT) {
+        else {
           paginate(SwipeDirection.RIGHT);
         }
       }
