@@ -5,7 +5,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { IMAGES } from '../constants';
 import { SwipeDirection } from '../types';
 
-const swipeConfidenceThreshold = 10000;
+const swipeConfidenceThreshold = 8000;
 const swipePower = (offset: number, velocity: number) => {
   return Math.abs(offset) * velocity;
 };
@@ -402,7 +402,11 @@ const Carousel: React.FC = () => {
               // Swipe navigation only when not zoomed
               drag={isZoomed ? false : "x"}
               dragConstraints={{ left: 0, right: 0 }}
-              dragElastic={0.7}
+              dragElastic={0.4}
+              dragTransition={{
+                bounceStiffness: 300,
+                bounceDamping: 20,
+              }}
               onDragEnd={(e, { offset, velocity }) => {
                 if (isZoomed) return; // Don't navigate when zoomed
                 const swipe = swipePower(offset.x, velocity.x);
