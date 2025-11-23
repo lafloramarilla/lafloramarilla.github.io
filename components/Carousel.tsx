@@ -426,16 +426,33 @@ const Carousel: React.FC = () => {
           </span>
         </div>
 
-        {/* Classic Dot Indicators - inside viewport container */}
+        {/* Dot Indicators with pulse animation */}
         <div className="absolute bottom-4 left-0 right-0 flex justify-center items-center gap-2 z-20">
           {IMAGES.map((_, idx) => (
-            <div
+            <motion.div
               key={idx}
-              className={`rounded-full transition-all duration-300 ${
-                idx === imageIndex
-                  ? 'w-2.5 h-2.5 bg-white/90'
-                  : 'w-2 h-2 bg-white/40'
-              }`}
+              className="rounded-full bg-white"
+              initial={false}
+              animate={{
+                scale: idx === imageIndex ? [1, 1.4, 1] : 1,
+                opacity: idx === imageIndex ? 0.9 : 0.4,
+                width: idx === imageIndex ? 10 : 8,
+                height: idx === imageIndex ? 10 : 8,
+              }}
+              transition={{
+                scale: {
+                  duration: 0.4,
+                  ease: "easeOut",
+                },
+                opacity: { duration: 0.3 },
+                width: { duration: 0.3 },
+                height: { duration: 0.3 },
+              }}
+              style={{
+                boxShadow: idx === imageIndex
+                  ? '0 0 8px 2px rgba(255, 255, 255, 0.3)'
+                  : 'none',
+              }}
             />
           ))}
         </div>
