@@ -62,6 +62,26 @@ const Carousel: React.FC = () => {
     }
   }, [page, triggerEdgeBounce]);
 
+  // Page counter auto-hide - shows on page change, fades after delay
+  const [showPageCounter, setShowPageCounter] = useState(true);
+  const pageCounterTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setShowPageCounter(true);
+    if (pageCounterTimeoutRef.current) {
+      clearTimeout(pageCounterTimeoutRef.current);
+    }
+    pageCounterTimeoutRef.current = setTimeout(() => {
+      setShowPageCounter(false);
+    }, 1500);
+
+    return () => {
+      if (pageCounterTimeoutRef.current) {
+        clearTimeout(pageCounterTimeoutRef.current);
+      }
+    };
+  }, [page]);
+
   // Handle keyboard navigation for desktop accessibility
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -271,6 +291,17 @@ const Carousel: React.FC = () => {
             />
           </AnimatePresence>
         </motion.div>
+
+        {/* Page Counter - discreet position indicator, auto-hides */}
+        <div
+          className={`absolute top-4 right-4 z-20 px-2.5 py-1 rounded-full bg-black/30 backdrop-blur-sm transition-opacity duration-300 ${
+            showPageCounter ? 'opacity-100' : 'opacity-0'
+          }`}
+        >
+          <span className="text-white/80 text-xs font-medium tabular-nums">
+            {imageIndex + 1} / {IMAGES.length}
+          </span>
+        </div>
 
         {/* Classic Dot Indicators - inside viewport container */}
         <div className="absolute bottom-4 left-0 right-0 flex justify-center items-center gap-2 z-20">
