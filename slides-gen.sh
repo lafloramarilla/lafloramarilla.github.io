@@ -89,7 +89,7 @@ docker run --rm \
     --entrypoint sh \
     dpokidov/imagemagick \
     -c 'i=1; for f in /input/slide-*.jpg; do
-        printf -v num "%02d" $i
+        num=$(printf "%02d" $i)
         magick "$f" -quality 85 -resize 1920x1920\> "/output/slide-${num}.webp"
         i=$((i+1))
     done'

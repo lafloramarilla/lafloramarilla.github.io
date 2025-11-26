@@ -18,8 +18,4 @@ export const IMAGES: SlideData[] = [
   { id: 13, url: `${base}images/slide-13.webp`, alt: 'Slide 13' },
   { id: 14, url: `${base}images/slide-14.webp`, alt: 'Slide 14' },
   { id: 15, url: `${base}images/slide-15.webp`, alt: 'Slide 15' },
-  { id: 16, url: `${base}images/slide-16.webp`, alt: 'Slide 16' },
-  { id: 17, url: `${base}images/slide-17.webp`, alt: 'Slide 17' },
-  { id: 18, url: `${base}images/slide-18.webp`, alt: 'Slide 18' },
-  { id: 19, url: `${base}images/slide-19.webp`, alt: 'Slide 19' },
 ];
